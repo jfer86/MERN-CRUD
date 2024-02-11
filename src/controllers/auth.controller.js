@@ -1,6 +1,8 @@
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import { createAccessToken } from "../libs/jwt.js";
+import jwt from "jsonwebtoken";
+import {TOKEN_SECRET} from '../config.js'
 
 export const register = async (req, res) => {
   const { username, email, password } = req.body;
@@ -36,7 +38,7 @@ export const login = async (req, res) => {
     if (!isMatch)
       return res.status(400).json({ message: "Invalid credentials" });
     const token = await createAccessToken({ id: userFound._id });
-    res.cookie("token", token, { httpOnly: false });
+    res.cookie("token", token);
     res.status(201).json({
       id: userFound._id,
       username: userFound.username,
@@ -63,5 +65,25 @@ export const profile = async (req, res) => {
     username: userFound.username,
     email: userFound.email,
     createdAt: userFound.createdAt,
+  });
+};
+
+export const verifyToken = async (req, res) => {
+  const { token } = req.cookies;
+
+  if (!token) return res.status(401).json({ message: "Unauthorized" });
+
+  jwt.verify(token, TOKEN_SECRET, async (err, user) => {
+    if (err) return res.status(401).json({ message: "Unauthorized" });
+
+    const userFound = await User.findById(user.id);
+    if (!userFound) return res.status(401).json({ message: "Unauthorized" });
+
+    return res.status(200).json({
+      id: userFound._id,
+      username: userFound.username,
+      email: userFound.email,
+      createdAt: userFound.createdAt,
+    });
   });
 };
